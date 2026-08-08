@@ -44,3 +44,21 @@ test("rejects a blocked horse leg", () => {
   assert.equal(game.move("red", "b0", "c2").ok, false);
   assert.equal(game.move("red", "b0", "a2").ok, false);
 });
+
+test("does not mistake an advanced pawn for a checking bishop", () => {
+  const game = new XiangqiGame("2b1ka2r/N3a4/2P1b4/p7p/9/6p2/P7c/2r1C4/4A4/RNB1KABR1 b 1 16");
+  const state = game.snapshot();
+
+  assert.equal(state.inCheck, false);
+  assert.ok(state.legalMoves.a6.includes("a5"));
+  assert.ok(Object.values(state.legalMoves).flat().length > 2);
+});
+
+test("keeps bishops on their own side of the river", () => {
+  const game = new XiangqiGame("3k5/9/9/9/9/2B6/9/9/9/4K4 w 0 1");
+  const moves = game.snapshot().legalMoves.c4;
+
+  assert.ok(moves.includes("e2"));
+  assert.ok(!moves.includes("e6"));
+  assert.ok(!moves.includes("a6"));
+});

@@ -32,12 +32,12 @@ function attacksTo(square, attacker, board, occupied) {
             pawnAttackerBoard = pawnAttackerBoard.set(pawnSquare, true);
     }
     let bishopAttackerBoard = squareSet_1.SquareSet.empty();
-    for (const bishopSquare of board.pawn.intersect(board[attacker])) {
+    for (const bishopSquare of board.bishop.intersect(board[attacker])) {
         if ((0, attacks_1.bishopAttacks)(bishopSquare, occupied).has(square))
             bishopAttackerBoard = bishopAttackerBoard.set(bishopSquare, true);
     }
     let advisorAttackerBoard = squareSet_1.SquareSet.empty();
-    for (const advisorSquare of board.pawn.intersect(board[attacker])) {
+    for (const advisorSquare of board.advisor.intersect(board[attacker])) {
         if ((0, attacks_1.advisorAttacks)(advisorSquare, occupied).has(square))
             advisorAttackerBoard = advisorAttackerBoard.set(advisorSquare, true);
     }
@@ -212,6 +212,10 @@ class Position {
     }
 }
 exports.Position = Position;
+const BISHOP_ZONES = {
+    white: [0, 1, 2, 3, 4].reduce((squares, rank) => squares.union(squareSet_1.SquareSet.fromRank(rank)), squareSet_1.SquareSet.empty()),
+    black: [5, 6, 7, 8, 9].reduce((squares, rank) => squares.union(squareSet_1.SquareSet.fromRank(rank)), squareSet_1.SquareSet.empty()),
+};
 class Chess extends Position {
     constructor(rules) {
         super(rules || "chess");
@@ -297,7 +301,7 @@ class Chess extends Position {
         if (piece.role === "pawn")
             pseudo = (0, attacks_1.pawnAttacks)(this.turn, square);
         else if (piece.role === "bishop")
-            pseudo = (0, attacks_1.bishopAttacks)(square, this.board.occupied);
+            pseudo = (0, attacks_1.bishopAttacks)(square, this.board.occupied).intersect(BISHOP_ZONES[this.turn]);
         else if (piece.role === "knight")
             pseudo = (0, attacks_1.knightAttacks)(square, this.board.occupied);
         else if (piece.role === "rook")
