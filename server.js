@@ -53,6 +53,7 @@ function createRoom() {
     id,
     game: new XiangqiGame(),
     players: { red: null, black: null },
+    pendingRequest: null,
     createdAt: Date.now(),
     lastActiveAt: Date.now(),
   };
@@ -67,6 +68,7 @@ function publicRoom(room) {
       red: room.players.red ? { connected: room.players.red.connected } : null,
       black: room.players.black ? { connected: room.players.black.connected } : null,
     },
+    pendingRequest: room.pendingRequest,
     game: room.game.snapshot(),
   };
 }
@@ -118,10 +120,49 @@ function leaveCurrentRoom(socket) {
     if (player && player.socketId === socket.id) {
       player.connected = false;
       player.socketId = null;
+      previousRoom.pendingRequest = null;
     }
   }
   socket.leave(previousRoom.id);
   broadcast(previousRoom);
+}
+
+function getPlayingRoom(socket, acknowledge) {
+  const room = rooms.get(socket.data.roomId);
+  if (!room || !["red", "black"].includes(socket.data.side)) {
+    acknowledge({ ok: false, error: "你还没有加入棋局" });
+    return null;
+  }
+  return room;
+}
+
+function bothPlayersOnline(room) {
+  return ["red", "black"].every((side) => room.players[side] && room.players[side].connected);
+}
+
+function startRequest(socket, type, acknowledge) {
+  const room = getPlayingRoom(socket, acknowledge);
+  if (!room) return;
+  if (room.game.gameOver) {
+    acknowledge({ ok: false, error: "本局已经结束" });
+    return;
+  }
+  if (!bothPlayersOnline(room)) {
+    acknowledge({ ok: false, error: "请等对手上线后再发起请求" });
+    return;
+  }
+  if (room.pendingRequest) {
+    acknowledge({ ok: false, error: "当前已有一个待处理请求" });
+    return;
+  }
+  if (type === "undo" && !room.game.canUndo(socket.data.side)) {
+    acknowledge({ ok: false, error: "你还没有可悔的棋" });
+    return;
+  }
+
+  room.pendingRequest = { type, from: socket.data.side };
+  acknowledge({ ok: true });
+  broadcast(room);
 }
 
 io.on("connection", (socket) => {
@@ -155,13 +196,14 @@ io.on("connection", (socket) => {
   });
 
   socket.on("move", (payload = {}, acknowledge = () => {}) => {
-    const room = rooms.get(socket.data.roomId);
-    if (!room || !["red", "black"].includes(socket.data.side)) {
-      acknowledge({ ok: false, error: "你还没有加入棋局" });
+    const room = getPlayingRoom(socket, acknowledge);
+    if (!room) return;
+    if (!bothPlayersOnline(room)) {
+      acknowledge({ ok: false, error: "请等对手上线后再走棋" });
       return;
     }
-    if (!room.players.red || !room.players.black || !room.players.red.connected || !room.players.black.connected) {
-      acknowledge({ ok: false, error: "请等对手上线后再走棋" });
+    if (room.pendingRequest) {
+      acknowledge({ ok: false, error: "请先处理当前请求" });
       return;
     }
 
@@ -177,6 +219,61 @@ io.on("connection", (socket) => {
     if (result.ok) broadcast(room);
   });
 
+  socket.on("resign", (_payload, acknowledge = () => {}) => {
+    const room = getPlayingRoom(socket, acknowledge);
+    if (!room) return;
+
+    const result = room.game.resign(socket.data.side);
+    acknowledge(result.ok ? { ok: true } : result);
+    if (result.ok) {
+      room.pendingRequest = null;
+      broadcast(room);
+    }
+  });
+
+  socket.on("offer-draw", (_payload, acknowledge = () => {}) => {
+    startRequest(socket, "draw", acknowledge);
+  });
+
+  socket.on("request-undo", (_payload, acknowledge = () => {}) => {
+    startRequest(socket, "undo", acknowledge);
+  });
+
+  socket.on("respond-request", (payload = {}, acknowledge = () => {}) => {
+    const room = getPlayingRoom(socket, acknowledge);
+    if (!room) return;
+    const request = room.pendingRequest;
+    if (!request) {
+      acknowledge({ ok: false, error: "这个请求已经失效" });
+      return;
+    }
+    if (request.from === socket.data.side) {
+      acknowledge({ ok: false, error: "请等待对方处理" });
+      return;
+    }
+
+    const accepted = payload.accept === true;
+    let result = { ok: true };
+    if (accepted && request.type === "draw") result = room.game.agreeDraw();
+    if (accepted && request.type === "undo") result = room.game.undoLastMoveBy(request.from);
+    room.pendingRequest = null;
+    acknowledge(result.ok ? { ok: true, accepted, undoneMoves: result.undoneMoves } : result);
+    broadcast(room);
+  });
+
+  socket.on("cancel-request", (_payload, acknowledge = () => {}) => {
+    const room = getPlayingRoom(socket, acknowledge);
+    if (!room) return;
+    if (!room.pendingRequest || room.pendingRequest.from !== socket.data.side) {
+      acknowledge({ ok: false, error: "没有可撤回的请求" });
+      return;
+    }
+
+    room.pendingRequest = null;
+    acknowledge({ ok: true });
+    broadcast(room);
+  });
+
   socket.on("restart", (_payload, acknowledge = () => {}) => {
     const room = rooms.get(socket.data.roomId);
     if (!room || !["red", "black"].includes(socket.data.side)) {
@@ -184,6 +281,7 @@ io.on("connection", (socket) => {
       return;
     }
     room.game = new XiangqiGame();
+    room.pendingRequest = null;
     acknowledge({ ok: true });
     broadcast(room);
   });
@@ -197,6 +295,7 @@ io.on("connection", (socket) => {
     if (player && player.socketId === socket.id) {
       player.connected = false;
       player.socketId = null;
+      room.pendingRequest = null;
       broadcast(room);
     }
   });

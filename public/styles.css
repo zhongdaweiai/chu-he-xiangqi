@@ -275,7 +275,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .waiting-seal { font-family: "Ma Shan Zheng", cursive; color: #f2d69a; font-size: 72px; line-height: 1; }
 .board-waiting h1 { margin: 0; font-size: clamp(22px, 4vw, 34px); letter-spacing: 0; }
 
-.primary-button, .invite-button, .secondary-button {
+.primary-button, .invite-button, .secondary-button, .request-button {
   min-height: 44px;
   border-radius: 4px;
   cursor: pointer;
@@ -290,7 +290,7 @@ button { -webkit-tap-highlight-color: transparent; }
   font-weight: 700;
 }
 
-.primary-button:hover, .invite-button:hover, .secondary-button:hover:not(:disabled) { transform: translateY(-1px); }
+.primary-button:hover, .invite-button:hover, .secondary-button:hover:not(:disabled), .request-button:hover { transform: translateY(-1px); }
 
 .game-panel {
   min-height: 600px;
@@ -299,7 +299,7 @@ button { -webkit-tap-highlight-color: transparent; }
   background: rgba(255, 255, 255, .4);
 }
 
-.room-section, .players-section, .moves-section { padding: 22px 0; border-bottom: 1px solid #d5cfc3; }
+.room-section, .players-section, .request-section, .moves-section { padding: 22px 0; border-bottom: 1px solid #d5cfc3; }
 .section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
 .section-heading span { color: var(--muted); font-size: 13px; }
 .section-heading strong { font-size: 16px; }
@@ -356,6 +356,27 @@ button { -webkit-tap-highlight-color: transparent; }
 .turn-banner b { text-align: right; font-size: 14px; }
 .turn-banner.check { border-left-color: var(--red); background: #f1ded8; }
 
+.request-section {
+  display: grid;
+  gap: 14px;
+  border-left: 3px solid var(--gold);
+  padding-left: 14px;
+  background: rgba(229, 224, 212, .55);
+}
+.request-section[hidden] { display: none; }
+.request-section strong, .request-section small { display: block; }
+.request-section strong { font-size: 14px; }
+.request-section small { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.request-actions { display: flex; gap: 8px; }
+.request-button {
+  min-height: 38px;
+  padding: 0 17px;
+  color: var(--forest);
+  background: transparent;
+  border: 1px solid #9ca9a4;
+}
+.request-button.accept { color: #fff; background: var(--forest); border-color: var(--forest); }
+
 .move-list {
   min-height: 178px;
   max-height: 230px;
@@ -381,8 +402,26 @@ button { -webkit-tap-highlight-color: transparent; }
 .move-list small { color: var(--muted); }
 .empty-moves { padding-top: 56px; color: #aaa399; text-align: center; font-size: 13px; }
 
-.panel-actions { padding-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.game-commands { padding-top: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.panel-actions { padding-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .secondary-button { color: var(--forest); background: transparent; border: 1px solid #9ca9a4; }
+.secondary-button.destructive { color: var(--red); border-color: rgba(170, 47, 39, .55); }
+.secondary-button.destructive:hover:not(:disabled) { color: #fff; background: var(--red); }
+
+.confirm-dialog {
+  width: min(420px, calc(100% - 32px));
+  padding: 24px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid #a7a095;
+  border-top: 4px solid var(--red);
+  border-radius: 4px;
+  box-shadow: 0 22px 60px rgba(15, 31, 26, .32);
+}
+.confirm-dialog::backdrop { background: rgba(15, 31, 26, .55); backdrop-filter: blur(2px); }
+.dialog-copy strong { font-size: 19px; }
+.dialog-copy p { margin: 8px 0 22px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 .toast {
   position: fixed;
@@ -424,8 +463,10 @@ button { -webkit-tap-highlight-color: transparent; }
   .river-labels { font-size: 46px; }
   .board-waiting h1 { font-size: 21px; }
   .waiting-seal { font-size: 56px; }
-  .room-section, .players-section, .moves-section { padding: 18px 4px; }
-  .panel-actions { padding: 16px 4px 0; }
+  .room-section, .players-section, .request-section, .moves-section { padding-top: 18px; padding-bottom: 18px; }
+  .room-section, .players-section, .moves-section { padding-left: 4px; padding-right: 4px; }
+  .request-section { padding-left: 14px; }
+  .game-commands, .panel-actions { padding-left: 4px; padding-right: 4px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

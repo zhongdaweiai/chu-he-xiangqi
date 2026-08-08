@@ -9,6 +9,18 @@ const elements = {
   newRoomButton: document.querySelector("#newRoomButton"),
   copyInviteButton: document.querySelector("#copyInviteButton"),
   restartButton: document.querySelector("#restartButton"),
+  undoButton: document.querySelector("#undoButton"),
+  drawButton: document.querySelector("#drawButton"),
+  resignButton: document.querySelector("#resignButton"),
+  requestSection: document.querySelector("#requestSection"),
+  requestTitle: document.querySelector("#requestTitle"),
+  requestMessage: document.querySelector("#requestMessage"),
+  acceptRequestButton: document.querySelector("#acceptRequestButton"),
+  declineRequestButton: document.querySelector("#declineRequestButton"),
+  cancelRequestButton: document.querySelector("#cancelRequestButton"),
+  resignDialog: document.querySelector("#resignDialog"),
+  cancelResignButton: document.querySelector("#cancelResignButton"),
+  confirmResignButton: document.querySelector("#confirmResignButton"),
   soundToggle: document.querySelector("#soundToggle"),
   connectionStatus: document.querySelector("#connectionStatus"),
   roomCode: document.querySelector("#roomCode"),
@@ -49,7 +61,7 @@ const state = {
   selected: null,
   sound: localStorage.getItem("xiangqi-sound") !== "off",
   audioContext: null,
-  renderedSequence: -1,
+  renderedRevision: -1,
   toastTimer: null,
 };
 
@@ -170,7 +182,13 @@ function pointToSquare(clientX, clientY) {
 function canMoveNow() {
   if (!state.room || !["red", "black"].includes(state.side)) return false;
   const players = state.room.players;
-  return Boolean(players.red?.connected && players.black?.connected && state.room.game.turn === state.side && !state.room.game.gameOver);
+  return Boolean(
+    players.red?.connected
+    && players.black?.connected
+    && state.room.game.turn === state.side
+    && !state.room.game.gameOver
+    && !state.room.pendingRequest
+  );
 }
 
 function chooseSquare(square) {
@@ -251,7 +269,8 @@ function addDrag(pieceElement, fromSquare) {
 
 function animateLastMove(pieceElement, square) {
   const move = state.room?.game.lastMove;
-  if (!move || move.to !== square || move.sequence === state.renderedSequence || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const game = state.room?.game;
+  if (!move || game.lastAction !== "move" || move.to !== square || game.revision === state.renderedRevision || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const from = squareToPosition(move.from);
   const to = squareToPosition(move.to);
   pieceElement.animate([
@@ -307,9 +326,9 @@ function renderBoard() {
     animateLastMove(button, square);
   }
 
-  if (game.lastMove && game.lastMove.sequence !== state.renderedSequence) {
+  if (game.lastMove && game.lastAction === "move" && game.revision !== state.renderedRevision) {
     playClack(game.lastMove.capture);
-    state.renderedSequence = game.lastMove.sequence;
+    state.renderedRevision = game.revision;
   }
 }
 
@@ -326,7 +345,15 @@ function renderStatus() {
   elements.boardWaiting.classList.toggle("hidden", Boolean(room));
   elements.roomCode.textContent = room ? room.id : "尚未开局";
   elements.copyInviteButton.disabled = !room;
-  elements.restartButton.disabled = !room || !["red", "black"].includes(state.side);
+  const isPlayer = ["red", "black"].includes(state.side);
+  const bothReady = Boolean(room?.players.red?.connected && room?.players.black?.connected);
+  const gameActive = Boolean(room && !room.game.gameOver);
+  const requestPending = Boolean(room?.pendingRequest);
+  elements.restartButton.disabled = !room || !isPlayer;
+  elements.undoButton.disabled = !gameActive || !isPlayer || !bothReady || requestPending
+    || !room.game.history.some((move) => move.side === state.side);
+  elements.drawButton.disabled = !gameActive || !isPlayer || !bothReady || requestPending;
+  elements.resignButton.disabled = !gameActive || !isPlayer || requestPending;
   updatePlayer(elements.redPlayer, "red");
   updatePlayer(elements.blackPlayer, "black");
 
@@ -337,14 +364,44 @@ function renderStatus() {
   }
 
   const game = room.game;
-  const bothReady = room.players.red?.connected && room.players.black?.connected;
   let label = state.side === "spectator" ? "观战中" : `你执${state.side === "red" ? "红" : "黑"}`;
   let message = "等待对手上线";
-  if (game.gameOver) message = game.winner ? `${game.winner === "red" ? "红方" : "黑方"}胜` : "本局和棋";
+  if (game.gameOver && game.endReason === "resign") {
+    const winner = game.winner === "red" ? "红方" : "黑方";
+    const loser = game.winner === "red" ? "黑方" : "红方";
+    message = `${winner}胜 · ${loser}认输`;
+  } else if (game.gameOver) message = game.winner ? `${game.winner === "red" ? "红方" : "黑方"}胜` : "双方和棋";
   else if (bothReady) message = game.turn === state.side ? "轮到你走" : `轮到${game.turn === "red" ? "红方" : "黑方"}`;
+  if (room.pendingRequest && !game.gameOver) message = `棋局暂停 · 待处理${room.pendingRequest.type === "draw" ? "求和" : "悔棋"}`;
   if (game.inCheck && !game.gameOver) message += " · 将军";
   elements.turnBanner.className = `turn-banner${game.inCheck ? " check" : ""}`;
   elements.turnBanner.innerHTML = `<span>${label}</span><b>${message}</b>`;
+}
+
+function renderRequest() {
+  const request = state.room?.pendingRequest;
+  elements.requestSection.hidden = !request;
+  if (!request) return;
+
+  const isRequester = request.from === state.side;
+  const isPlayer = ["red", "black"].includes(state.side);
+  const requestName = request.type === "draw" ? "和棋" : "悔棋";
+  elements.acceptRequestButton.hidden = !isPlayer || isRequester;
+  elements.declineRequestButton.hidden = !isPlayer || isRequester;
+  elements.cancelRequestButton.hidden = !isRequester;
+
+  if (isRequester) {
+    elements.requestTitle.textContent = `已提出${requestName}`;
+    elements.requestMessage.textContent = "等待对方回应，期间棋局暂停。";
+  } else if (isPlayer) {
+    elements.requestTitle.textContent = `对方请求${requestName}`;
+    elements.requestMessage.textContent = request.type === "draw"
+      ? "同意后，本局立即以和棋结束。"
+      : "同意后，将退回对方上一步落子之前。";
+  } else {
+    elements.requestTitle.textContent = `双方正在处理${requestName}请求`;
+    elements.requestMessage.textContent = "请求处理完毕后棋局继续。";
+  }
 }
 
 function renderMoves() {
@@ -376,6 +433,7 @@ function renderMoves() {
 
 function render() {
   renderStatus();
+  renderRequest();
   renderMoves();
   renderBoard();
 }
@@ -393,7 +451,7 @@ function enterRoom(result) {
   state.side = result.side;
   state.room = result.room;
   state.selected = null;
-  state.renderedSequence = result.room.game.sequence;
+  state.renderedRevision = result.room.game.revision;
   rememberPlayer(result.roomId, result.token);
   history.replaceState({}, "", `/?room=${result.roomId}`);
   render();
@@ -433,6 +491,46 @@ elements.restartButton.addEventListener("click", () => {
     else showToast("同一房间，新的一局开始了");
   });
 });
+elements.undoButton.addEventListener("click", () => {
+  socket.emit("request-undo", {}, (result) => {
+    if (!result?.ok) showToast(result?.error || "暂时无法请求悔棋");
+    else showToast("悔棋请求已发出");
+  });
+});
+elements.drawButton.addEventListener("click", () => {
+  socket.emit("offer-draw", {}, (result) => {
+    if (!result?.ok) showToast(result?.error || "暂时无法求和");
+    else showToast("求和请求已发出");
+  });
+});
+elements.resignButton.addEventListener("click", () => {
+  elements.resignDialog.showModal();
+});
+elements.cancelResignButton.addEventListener("click", () => elements.resignDialog.close());
+elements.confirmResignButton.addEventListener("click", () => {
+  elements.resignDialog.close();
+  socket.emit("resign", {}, (result) => {
+    if (!result?.ok) showToast(result?.error || "认输操作没有完成");
+  });
+});
+elements.acceptRequestButton.addEventListener("click", () => {
+  socket.emit("respond-request", { accept: true }, (result) => {
+    if (!result?.ok) showToast(result?.error || "这个请求已经失效");
+    else showToast("已同意对方请求");
+  });
+});
+elements.declineRequestButton.addEventListener("click", () => {
+  socket.emit("respond-request", { accept: false }, (result) => {
+    if (!result?.ok) showToast(result?.error || "这个请求已经失效");
+    else showToast("已拒绝对方请求");
+  });
+});
+elements.cancelRequestButton.addEventListener("click", () => {
+  socket.emit("cancel-request", {}, (result) => {
+    if (!result?.ok) showToast(result?.error || "请求已经无法撤回");
+    else showToast("请求已撤回");
+  });
+});
 elements.soundToggle.addEventListener("click", () => {
   state.sound = !state.sound;
   localStorage.setItem("xiangqi-sound", state.sound ? "on" : "off");
@@ -454,9 +552,13 @@ socket.on("disconnect", () => {
 });
 socket.on("room-state", (room) => {
   if (room.id !== state.roomId) return;
-  const previousSequence = state.room?.game.sequence ?? -1;
+  const previousRevision = state.room?.game.revision ?? -1;
+  const previousRequest = state.room?.pendingRequest;
   state.room = room;
-  if (room.game.sequence !== previousSequence) state.selected = null;
+  if (room.game.revision !== previousRevision) state.selected = null;
+  if (!previousRequest && room.pendingRequest && room.pendingRequest.from !== state.side) {
+    showToast(room.pendingRequest.type === "draw" ? "对方提出和棋" : "对方请求悔棋");
+  }
   render();
 });
 

@@ -62,3 +62,50 @@ test("keeps bishops on their own side of the river", () => {
   assert.ok(!moves.includes("e6"));
   assert.ok(!moves.includes("a6"));
 });
+
+test("undoes through the requesting player's most recent move", () => {
+  const game = new XiangqiGame();
+  const initialFen = game.snapshot().fen;
+
+  assert.equal(game.move("red", "a3", "a4").ok, true);
+  assert.equal(game.move("black", "a6", "a5").ok, true);
+  const undone = game.undoLastMoveBy("red");
+
+  assert.equal(undone.ok, true);
+  assert.equal(undone.undoneMoves, 2);
+  assert.equal(undone.state.fen, initialFen);
+  assert.equal(undone.state.turn, "red");
+  assert.equal(undone.state.sequence, 0);
+  assert.equal(undone.state.lastMove, null);
+  assert.equal(undone.state.lastAction, "undo");
+});
+
+test("undoes only one move when its player just moved", () => {
+  const game = new XiangqiGame();
+
+  game.move("red", "a3", "a4");
+  game.move("black", "a6", "a5");
+  const undone = game.undoLastMoveBy("black");
+
+  assert.equal(undone.undoneMoves, 1);
+  assert.equal(undone.state.sequence, 1);
+  assert.equal(undone.state.turn, "black");
+  assert.equal(undone.state.lastMove.to, "a4");
+});
+
+test("records resignation and agreed draw as final outcomes", () => {
+  const resignedGame = new XiangqiGame();
+  const resignation = resignedGame.resign("red");
+
+  assert.equal(resignation.state.gameOver, true);
+  assert.equal(resignation.state.winner, "black");
+  assert.equal(resignation.state.endReason, "resign");
+  assert.deepEqual(resignation.state.legalMoves, {});
+  assert.equal(resignedGame.move("red", "a3", "a4").ok, false);
+
+  const drawnGame = new XiangqiGame();
+  const draw = drawnGame.agreeDraw();
+  assert.equal(draw.state.gameOver, true);
+  assert.equal(draw.state.winner, null);
+  assert.equal(draw.state.endReason, "draw");
+});
