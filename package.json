@@ -1,0 +1,23 @@
+{
+  "name": "xiangqi-together",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A polished real-time Chinese chess game for two remote players.",
+  "license": "GPL-3.0-or-later",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@badrap/result": "^0.2.13",
+    "express": "^5.1.0",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.1"
+  }
+}

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#183f35" />
+    <meta name="description" content="楚河棋局：与家人远程对弈的中国象棋。" />
+    <title>楚河棋局</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="楚河棋局首页">
+        <span class="brand-seal" aria-hidden="true">弈</span>
+        <span>
+          <strong>楚河棋局</strong>
+          <small>相隔千里 · 对坐一局</small>
+        </span>
+      </a>
+      <div class="topbar-actions">
+        <span class="connection" id="connectionStatus"><i></i>连接中</span>
+        <button class="sound-toggle" id="soundToggle" type="button" aria-pressed="true" title="开关落子声音">
+          <span aria-hidden="true">音</span><b>开</b>
+        </button>
+      </div>
+    </header>
+
+    <main class="game-shell">
+      <section class="board-stage" aria-label="中国象棋棋盘">
+        <div class="board-wrap" id="boardWrap">
+          <svg class="board-art" viewBox="0 0 900 1000" role="img" aria-label="传统中国象棋棋盘">
+            <defs>
+              <pattern id="woodgrain" width="140" height="42" patternUnits="userSpaceOnUse">
+                <path d="M0 14 C30 4, 70 28, 140 12 M-20 34 C42 21, 84 50, 160 31" fill="none" stroke="#6d4523" stroke-opacity=".13" stroke-width="3" />
+              </pattern>
+              <filter id="innerShadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="7" stdDeviation="10" flood-color="#4a2812" flood-opacity=".3" />
+              </filter>
+            </defs>
+            <rect x="14" y="14" width="872" height="972" rx="18" fill="#d9ac64" stroke="#68421f" stroke-width="12" filter="url(#innerShadow)" />
+            <rect x="22" y="22" width="856" height="956" rx="12" fill="url(#woodgrain)" />
+            <g class="board-lines" fill="none" stroke="#4c2d16" stroke-width="4">
+              <rect x="50" y="50" width="800" height="900" />
+              <path d="M50 150H850 M50 250H850 M50 350H850 M50 450H850 M50 550H850 M50 650H850 M50 750H850 M50 850H850" />
+              <path d="M150 50V450 M250 50V450 M350 50V450 M450 50V450 M550 50V450 M650 50V450 M750 50V450" />
+              <path d="M150 550V950 M250 550V950 M350 550V950 M450 550V950 M550 550V950 M650 550V950 M750 550V950" />
+              <path d="M350 50L550 250 M550 50L350 250 M350 750L550 950 M550 750L350 950" />
+            </g>
+            <g class="river-labels" fill="#4c2d16">
+              <text x="245" y="520" text-anchor="middle">楚 河</text>
+              <text x="655" y="520" text-anchor="middle">漢 界</text>
+            </g>
+            <g class="board-corner-marks" fill="none" stroke="#4c2d16" stroke-width="3">
+              <path d="M130 230v-16h16 M170 230v-16h-16 M130 270v16h16 M170 270v16h-16 M730 230v-16h16 M770 230v-16h-16 M730 270v16h16 M770 270v16h-16" />
+              <path d="M130 730v-16h16 M170 730v-16h-16 M130 770v16h16 M170 770v16h-16 M730 730v-16h16 M770 730v-16h-16 M730 770v16h16 M770 770v16h-16" />
+            </g>
+          </svg>
+          <div class="board-points" id="boardPoints"></div>
+          <div class="pieces" id="pieces"></div>
+          <div class="board-waiting" id="boardWaiting">
+            <span class="waiting-seal" aria-hidden="true">棋</span>
+            <h1>隔屏对弈，落子有声</h1>
+            <button class="primary-button" id="createRoomButton" type="button">开一盘棋</button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="game-panel" aria-label="棋局信息">
+        <section class="room-section" id="roomSection">
+          <div class="section-heading">
+            <span>对局房间</span>
+            <strong id="roomCode">尚未开局</strong>
+          </div>
+          <button class="invite-button" id="copyInviteButton" type="button" disabled>
+            <span aria-hidden="true">＋</span>复制邀请链接
+          </button>
+        </section>
+
+        <section class="players-section" aria-label="对局双方">
+          <div class="player-row" id="blackPlayer">
+            <span class="player-piece black">將</span>
+            <span class="player-copy"><strong>黑方</strong><small>等待加入</small></span>
+            <i></i>
+          </div>
+          <div class="turn-banner" id="turnBanner">
+            <span>棋局未开始</span>
+            <b>请先创建房间</b>
+          </div>
+          <div class="player-row" id="redPlayer">
+            <span class="player-piece red">帥</span>
+            <span class="player-copy"><strong>红方</strong><small>等待加入</small></span>
+            <i></i>
+          </div>
+        </section>
+
+        <section class="moves-section">
+          <div class="section-heading">
+            <span>棋谱</span>
+            <strong id="moveCount">0 手</strong>
+          </div>
+          <ol class="move-list" id="moveList">
+            <li class="empty-moves">静候第一步</li>
+          </ol>
+        </section>
+
+        <div class="panel-actions">
+          <button class="secondary-button" id="restartButton" type="button" disabled>重新开局</button>
+          <button class="secondary-button" id="newRoomButton" type="button">新建棋局</button>
+        </div>
+      </aside>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js" defer></script>
+  </body>
+</html>
