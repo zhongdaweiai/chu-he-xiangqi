@@ -280,7 +280,11 @@ function renderBoard() {
       point.style.top = `${position.top}%`;
       point.setAttribute("aria-label", `棋盘位置 ${square}`);
       if (selectedMoves.includes(square)) point.classList.add(boardPieces.has(square) ? "capture" : "legal");
-      if (game.lastMove && (game.lastMove.from === square || game.lastMove.to === square)) point.classList.add("last");
+      if (game.lastMove?.from === square) {
+        point.classList.add("last-from");
+        point.setAttribute("aria-label", `棋盘位置 ${square}，最后一步起点`);
+      }
+      if (game.lastMove?.to === square) point.classList.add("last-to");
       point.addEventListener("click", () => chooseSquare(square));
       elements.boardPoints.append(point);
     }
@@ -292,11 +296,12 @@ function renderBoard() {
     button.type = "button";
     button.className = `piece ${piece.side}`;
     if (state.selected === square) button.classList.add("selected");
+    if (game.lastMove?.to === square) button.classList.add("last-moved");
     if (!canMoveNow() || piece.side !== state.side) button.classList.add("disabled");
     button.style.left = `${position.left}%`;
     button.style.top = `${position.top}%`;
     button.textContent = piece.text;
-    button.setAttribute("aria-label", `${piece.side === "red" ? "红" : "黑"}${piece.text}，${square}`);
+    button.setAttribute("aria-label", `${piece.side === "red" ? "红" : "黑"}${piece.text}，${square}${game.lastMove?.to === square ? "，最后一步落点" : ""}`);
     addDrag(button, square);
     elements.pieces.append(button);
     animateLastMove(button, square);
@@ -425,6 +430,7 @@ elements.restartButton.addEventListener("click", () => {
   ensureAudio();
   socket.emit("restart", {}, (result) => {
     if (!result?.ok) showToast(result?.error || "暂时无法重新开局");
+    else showToast("同一房间，新的一局开始了");
   });
 });
 elements.soundToggle.addEventListener("click", () => {

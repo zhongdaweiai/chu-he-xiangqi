@@ -38,6 +38,7 @@ test("creates a room, seats two players, and syncs a legal move", async (context
   const created = await emitAck(red, "create-room");
   assert.equal(created.ok, true);
   assert.equal(created.side, "red");
+  assert.match(created.roomId, /^\d{4}$/);
 
   const joined = await emitAck(black, "join-room", { roomId: created.roomId });
   assert.equal(joined.ok, true);
@@ -48,4 +49,13 @@ test("creates a room, seats two players, and syncs a legal move", async (context
 
   const rejected = await emitAck(red, "move", { from: "c3", to: "c4" });
   assert.equal(rejected.ok, false);
+
+  const restartedState = new Promise((resolve) => {
+    black.on("room-state", (room) => {
+      if (room.id === created.roomId && room.game.sequence === 0) resolve(room);
+    });
+  });
+  const restarted = await emitAck(red, "restart");
+  assert.equal(restarted.ok, true);
+  assert.equal((await restartedState).game.turn, "red");
 });

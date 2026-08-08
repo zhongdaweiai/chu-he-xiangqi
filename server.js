@@ -14,7 +14,6 @@ const io = new Server(server, {
 });
 
 const PORT = process.env.PORT === undefined ? 3000 : Number(process.env.PORT);
-const ROOM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const ROOM_TTL = 24 * 60 * 60 * 1000;
 const rooms = new Map();
 
@@ -32,11 +31,8 @@ app.use(express.static(path.join(__dirname, "public"), {
 }));
 
 function makeRoomId() {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    let id = "";
-    for (let index = 0; index < 6; index += 1) {
-      id += ROOM_ALPHABET[crypto.randomInt(ROOM_ALPHABET.length)];
-    }
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const id = crypto.randomInt(10_000).toString().padStart(4, "0");
     if (!rooms.has(id)) return id;
   }
   throw new Error("Could not allocate a room id");
@@ -47,8 +43,8 @@ function makeToken() {
 }
 
 function cleanRoomId(value) {
-  const id = String(value || "").trim().toUpperCase();
-  return /^[A-HJ-NP-Z2-9]{6}$/.test(id) ? id : null;
+  const id = String(value || "").trim();
+  return /^\d{4}$/.test(id) ? id : null;
 }
 
 function createRoom() {
