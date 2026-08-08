@@ -24,6 +24,11 @@ app.get("/health", (_request, response) => {
 });
 app.use(express.static(path.join(__dirname, "public"), {
   maxAge: process.env.NODE_ENV === "production" ? "1h" : 0,
+  setHeaders(response, filePath) {
+    if (path.basename(filePath) === "index.html") {
+      response.setHeader("Cache-Control", "no-cache");
+    }
+  },
 }));
 
 function makeRoomId() {
@@ -210,7 +215,8 @@ setInterval(() => {
 }, 15 * 60 * 1000).unref();
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Xiangqi server listening on ${PORT}`);
+  const address = server.address();
+  console.log(`Xiangqi server listening on ${typeof address === "object" ? address.port : PORT}`);
 });
 
 module.exports = { app, server, rooms };
